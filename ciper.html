@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>CipherVault SSE · Demo Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--cyan:#00f5ff;--green:#39ff14;--pink:#ff006e;--gold:#ffd60a;--dark:#020408;--dark2:#060d14;--dark3:#0a1520;--panel:rgba(0,245,255,0.03);--panel2:rgba(0,245,255,0.06);--border:rgba(0,245,255,0.12);--border2:rgba(0,245,255,0.2);--text:#c8e8f0;--text2:rgba(200,232,240,0.6);--sidebar-w:240px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;overflow:hidden;}
+.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,245,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.025) 1px,transparent 1px);background-size:32px 32px;animation:gridScroll 25s linear infinite;}
+@keyframes gridScroll{0%{background-position:0 0}100%{background-position:32px 32px}}
+.scanlines{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);}
+.bg-glow{position:fixed;width:600px;height:600px;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;}
+.glow-cyan{background:rgba(0,245,255,0.04);top:-200px;left:-100px;}
+.glow-pink{background:rgba(255,0,110,0.03);bottom:-200px;right:-100px;}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:rgba(6,13,20,0.96);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;position:fixed;left:0;top:0;bottom:0;z-index:100;backdrop-filter:blur(20px);}
+.sidebar-brand{display:flex;align-items:center;gap:12px;padding:0 20px 24px;border-bottom:1px solid var(--border);}
+.brand-icon{font-size:1.8rem;color:var(--cyan);animation:brandPulse 3s ease-in-out infinite;}
+@keyframes brandPulse{0%,100%{text-shadow:0 0 10px rgba(0,245,255,0.4)}50%{text-shadow:0 0 25px rgba(0,245,255,0.9),0 0 60px rgba(0,245,255,0.3)}}
+.brand-name{font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:900;color:var(--cyan);letter-spacing:0.1em;}
+.brand-ver{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(0,245,255,0.4);}
+.sidebar-user{display:flex;align-items:center;gap:12px;padding:20px;border-bottom:1px solid var(--border);}
+.user-avatar{width:38px;height:38px;border-radius:4px;background:linear-gradient(135deg,rgba(0,245,255,0.2),rgba(0,245,255,0.05));border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:0.9rem;color:var(--cyan);position:relative;}
+.user-online-dot{width:8px;height:8px;background:var(--green);border-radius:50%;position:absolute;bottom:-2px;right:-2px;box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.user-name{font-size:0.9rem;font-weight:600;color:var(--cyan);}
+.user-role{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--text2);}
+.sidebar-nav{flex:1;padding:16px 0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:12px 20px;color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:0.72rem;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s;text-decoration:none;border-left:2px solid transparent;}
+.nav-item:hover{color:var(--cyan);background:rgba(0,245,255,0.04);}
+.nav-item.active{color:var(--cyan);background:rgba(0,245,255,0.06);border-left-color:var(--cyan);}
+.sidebar-status{padding:16px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+.status-row{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text2);}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.status-dot.green{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.8s ease-in-out infinite;}
+.status-dot.cyan{background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation:pulse 2.5s ease-in-out infinite;}
+
+/* Main */
+.main-content{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden;position:relative;z-index:10;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(6,13,20,0.9);border-bottom:1px solid var(--border);backdrop-filter:blur(10px);}
+.topbar-title{font-family:'Orbitron',monospace;font-size:0.9rem;font-weight:700;color:var(--cyan);}
+.topbar-path{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--text2);margin-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.metric-badge{display:flex;flex-direction:column;align-items:center;padding:6px 14px;background:rgba(0,245,255,0.04);border:1px solid var(--border);}
+.metric-label{font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:var(--text2);letter-spacing:0.15em;}
+.metric-val{font-family:'Orbitron',monospace;font-size:0.9rem;color:var(--cyan);font-weight:700;}
+.time-display{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--cyan);}
+
+/* Tabs */
+.tab-panel{display:none;padding:28px;overflow-y:auto;height:calc(100vh - 61px);}
+.tab-panel.active{display:block;animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Dashboard Grid */
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.stat-card{background:var(--panel);border:1px solid var(--border);padding:20px;position:relative;overflow:hidden;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%);transition:transform 0.2s,box-shadow 0.2s;}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.3);}
+.stat-icon{font-size:1.5rem;margin-bottom:8px;}
+.stat-val{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--accent,var(--cyan));}
+.stat-label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text2);letter-spacing:0.1em;margin-top:4px;}
+.stat-bar{height:2px;background:rgba(0,0,0,0.3);margin-top:12px;}
+.stat-fill{height:100%;transition:width 1.2s ease;}
+.stat-fill.cyan{background:linear-gradient(90deg,var(--cyan),rgba(0,245,255,0.3));box-shadow:0 0 8px var(--cyan);}
+.stat-fill.green{background:linear-gradient(90deg,var(--green),rgba(57,255,20,0.3));box-shadow:0 0 8px var(--green);}
+.stat-fill.gold{background:linear-gradient(90deg,var(--gold),rgba(255,214,10,0.3));box-shadow:0 0 8px var(--gold);}
+.stat-fill.pink{background:linear-gradient(90deg,var(--pink),rgba(255,0,110,0.3));box-shadow:0 0 8px var(--pink);}
+
+.arch-panel{grid-column:1/-1;background:var(--panel);border:1px solid var(--border);padding:24px;}
+.activity-panel,.security-panel{grid-column:span 2;background:var(--panel);border:1px solid var(--border);padding:20px;}
+.panel-header{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--cyan);letter-spacing:0.2em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+
+.arch-flow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.arch-node{flex:1;min-width:75px;background:rgba(0,245,255,0.03);border:1px solid var(--border);padding:12px 6px;text-align:center;transition:all 0.3s;}
+.arch-node.active{border-color:var(--cyan);background:rgba(0,245,255,0.08);box-shadow:0 0 20px rgba(0,245,255,0.1);}
+.arch-node-icon{font-size:1.2rem;}
+.arch-node-label{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--text2);margin-top:5px;}
+.arch-arrow{color:var(--cyan);font-size:1.2rem;opacity:0.5;}
+.leakage-note{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:rgba(255,214,10,0.6);margin-top:14px;text-align:center;}
+
+.activity-list{display:flex;flex-direction:column;gap:10px;max-height:200px;overflow-y:auto;}
+.activity-item{display:flex;align-items:flex-start;gap:10px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;}
+.act-icon{padding:2px 6px;font-size:0.58rem;flex-shrink:0;}
+.act-icon.cyan{background:rgba(0,245,255,0.1);color:var(--cyan);border:1px solid rgba(0,245,255,0.2);}
+.act-icon.green{background:rgba(57,255,20,0.1);color:var(--green);border:1px solid rgba(57,255,20,0.2);}
+.act-icon.gold{background:rgba(255,214,10,0.1);color:var(--gold);border:1px solid rgba(255,214,10,0.2);}
+.act-icon.pink{background:rgba(255,0,110,0.1);color:var(--pink);border:1px solid rgba(255,0,110,0.2);}
+.act-text{color:var(--text2);line-height:1.5;}
+
+.security-props{display:flex;flex-direction:column;gap:8px;}
+.prop{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,245,255,0.05);}
+.prop-key{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text2);}
+.prop-val{font-family:'Share Tech Mono',monospace;font-size:0.65rem;}
+.prop-val.cyan{color:var(--cyan);}.prop-val.green{color:var(--green);}.prop-val.gold{color:var(--gold);}.prop-val.pink{color:var(--pink);}
+
+/* Upload */
+.upload-container{max-width:800px;margin:0 auto;}
+.upload-zone{border:2px dashed var(--border2);background:var(--panel);padding:60px 40px;text-align:center;cursor:pointer;transition:all 0.3s;margin-bottom:24px;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--cyan);background:rgba(0,245,255,0.06);box-shadow:0 0 40px rgba(0,245,255,0.1);}
+.upload-icon{font-size:3rem;color:var(--cyan);margin-bottom:16px;animation:bounce 2s ease-in-out infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.upload-title{font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);letter-spacing:0.1em;}
+.upload-sub{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--text2);margin-top:8px;}
+.btn-upload-select{margin-top:24px;padding:12px 28px;background:rgba(0,245,255,0.1);border:1px solid var(--cyan);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.8rem;cursor:pointer;letter-spacing:0.1em;transition:all 0.2s;}
+.btn-upload-select:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 20px rgba(0,245,255,0.2);}
+.enc-animation{margin-bottom:24px;}
+.enc-anim-inner{background:var(--dark3);border:1px solid var(--border);padding:20px;text-align:center;}
+.enc-label{font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--green);margin-top:12px;animation:blink 0.8s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.upload-results{display:flex;flex-direction:column;gap:12px;}
+.upload-result-card{background:var(--panel);border:1px solid var(--border);padding:16px 20px;display:flex;gap:16px;align-items:flex-start;animation:slideIn 0.4s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.result-icon{font-size:1.5rem;}
+.result-info{flex:1;}
+.result-name{font-size:0.95rem;font-weight:600;color:var(--cyan);}
+.result-meta{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text2);margin-top:4px;}
+.result-fp{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--green);word-break:break-all;margin-top:6px;}
+.result-badge{padding:4px 10px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;background:rgba(57,255,20,0.1);border:1px solid rgba(57,255,20,0.3);color:var(--green);}
+
+/* Search */
+.search-container{max-width:900px;margin:0 auto;}
+.search-bar-wrap{display:flex;gap:12px;align-items:center;margin-bottom:24px;background:var(--panel);border:1px solid var(--border);padding:12px 16px;}
+.search-icon-wrap{color:var(--cyan);font-size:1.2rem;}
+.search-input{flex:1;background:transparent;border:none;outline:none;color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:1rem;}
+.search-input::placeholder{color:rgba(0,245,255,0.25);}
+.toggle-wrap{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.toggle-wrap input{accent-color:var(--cyan);}
+.toggle-label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text2);}
+.tol-select{background:var(--dark3);border:1px solid var(--border);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.65rem;padding:4px 8px;outline:none;}
+.btn-search{padding:10px 20px;background:rgba(0,245,255,0.1);border:1px solid var(--cyan);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.75rem;cursor:pointer;letter-spacing:0.1em;transition:all 0.2s;white-space:nowrap;}
+.btn-search:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 20px rgba(0,245,255,0.2);}
+.trapdoor-panel{background:var(--dark3);border:1px solid var(--border);padding:20px;margin-bottom:20px;}
+.trap-step{padding:4px 0;border-bottom:1px solid rgba(0,245,255,0.05);display:flex;align-items:flex-start;gap:10px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;}
+.trap-key{color:var(--gold);min-width:180px;flex-shrink:0;}
+.trap-val{color:var(--green);word-break:break-all;}
+.results-area{display:flex;flex-direction:column;gap:14px;}
+.result-card{background:var(--panel);border:1px solid var(--border);padding:20px;animation:slideIn 0.4s ease;}
+.result-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.result-title{font-size:1rem;font-weight:700;color:var(--cyan);}
+.result-size{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--text2);}
+.result-snippet{font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text2);line-height:1.6;margin-bottom:12px;background:rgba(0,0,0,0.2);padding:10px;overflow:hidden;max-height:70px;}
+.result-footer{display:flex;gap:12px;flex-wrap:wrap;}
+.result-tag{padding:3px 8px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;}
+.result-tag.doc-id{background:rgba(0,245,255,0.06);border:1px solid rgba(0,245,255,0.2);color:var(--cyan);}
+.result-tag.verified{background:rgba(57,255,20,0.06);border:1px solid rgba(57,255,20,0.2);color:var(--green);}
+.search-meta{background:var(--dark3);border:1px solid var(--border);padding:16px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.meta-item{display:flex;flex-direction:column;gap:2px;}
+.meta-key{color:var(--text2);font-size:0.6rem;}
+.meta-val{color:var(--cyan);}
+.no-results{text-align:center;padding:60px;color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:0.8rem;}
+
+/* Verify */
+.verify-container{max-width:720px;margin:0 auto;}
+.verify-intro{font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text2);margin-bottom:24px;line-height:1.7;}
+.verify-form{display:flex;flex-direction:column;gap:14px;margin-bottom:24px;}
+.field-label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:rgba(0,245,255,0.5);letter-spacing:0.15em;text-transform:uppercase;}
+.field-input{width:100%;padding:12px 14px;background:rgba(0,245,255,0.03);border:1px solid var(--border);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.8rem;outline:none;}
+.field-input:focus{border-color:var(--cyan);}
+.field-textarea{width:100%;padding:12px 14px;resize:vertical;background:rgba(0,245,255,0.03);border:1px solid var(--border);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;}
+.btn-verify{padding:14px 28px;align-self:flex-start;background:rgba(0,245,255,0.1);border:1px solid var(--cyan);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.8rem;cursor:pointer;letter-spacing:0.1em;transition:all 0.2s;}
+.btn-verify:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 20px rgba(0,245,255,0.2);}
+.verify-result{padding:20px;font-family:'Share Tech Mono',monospace;font-size:0.8rem;animation:fadeIn 0.3s ease;}
+.verify-result.success{background:rgba(57,255,20,0.06);border:1px solid rgba(57,255,20,0.3);color:var(--green);}
+.verify-result.fail{background:rgba(255,0,110,0.06);border:1px solid rgba(255,0,110,0.3);color:var(--pink);}
+
+/* Index */
+.index-container{max-width:960px;margin:0 auto;}
+#indexCanvas{width:100%;background:var(--dark3);border:1px solid var(--border);display:block;margin:20px auto;}
+.index-legend{display:flex;gap:20px;justify-content:center;margin-top:12px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text2);}
+.legend-dot{width:10px;height:10px;border-radius:50%;}
+.legend-dot.cyan{background:var(--cyan);box-shadow:0 0 6px var(--cyan);}
+.legend-dot.green{background:var(--green);box-shadow:0 0 6px var(--green);}
+.legend-dot.gold{background:var(--gold);box-shadow:0 0 6px var(--gold);}
+
+/* Merkle */
+.merkle-visual{margin-top:20px;}
+#merkleCanvas{width:100%;background:var(--dark3);border:1px solid var(--border);display:block;margin-top:10px;}
+.btn-logout{margin:16px 20px 0;padding:10px;background:transparent;border:1px solid rgba(255,0,110,0.3);color:var(--pink);font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s;width:calc(100% - 40px);}
+.btn-logout:hover{background:rgba(255,0,110,0.1);box-shadow:0 0 15px rgba(255,0,110,0.2);}
+
+.login-overlay{position:fixed;inset:0;background:rgba(2,4,8,0.97);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.login-card{position:relative;width:min(480px,95vw);background:rgba(0,245,255,0.04);border:1px solid rgba(0,245,255,0.15);padding:48px 40px;clip-path:polygon(0 0,calc(100% - 24px) 0,100% 24px,100% 100%,24px 100%,0 calc(100% - 24px));backdrop-filter:blur(20px);box-shadow:0 0 60px rgba(0,245,255,0.08);animation:cardIn 0.8s cubic-bezier(0.16,1,0.3,1) both;}
+@keyframes cardIn{from{opacity:0;transform:translateY(30px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.card-corner{position:absolute;width:12px;height:12px;border-color:var(--cyan);border-style:solid;}
+.card-corner.tl{top:0;left:0;border-width:2px 0 0 2px}
+.card-corner.tr{top:0;right:0;border-width:2px 2px 0 0}
+.card-corner.bl{bottom:0;left:0;border-width:0 0 2px 2px}
+.card-corner.br{bottom:0;right:0;border-width:0 2px 2px 0}
+.brand-logo{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--cyan);text-shadow:0 0 20px rgba(0,245,255,0.6);letter-spacing:0.15em;animation:glitch 8s infinite;text-align:center;}
+@keyframes glitch{0%,94%,100%{text-shadow:0 0 20px rgba(0,245,255,0.6)}95%{text-shadow:-2px 0 var(--pink),2px 0 var(--green),0 0 20px rgba(0,245,255,0.6)}97%{text-shadow:2px 0 var(--pink),-2px 0 var(--green),0 0 20px rgba(0,245,255,0.6)}}
+.brand{text-align:center;margin-bottom:36px;}
+.brand-sub{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:rgba(0,245,255,0.4);letter-spacing:0.3em;margin-top:6px;}
+.security-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(57,255,20,0.08);border:1px solid rgba(57,255,20,0.3);padding:5px 12px;margin-top:10px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--green);}
+.badge-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s ease-in-out infinite;}
+.field-group{margin-bottom:20px;}
+.l-field-label{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:rgba(0,245,255,0.5);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:7px;display:block;}
+.l-field-input{width:100%;padding:13px 15px;background:rgba(0,245,255,0.03);border:1px solid rgba(0,245,255,0.15);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:0.9rem;outline:none;transition:all 0.2s;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));}
+.l-field-input:focus{border-color:var(--cyan);background:rgba(0,245,255,0.06);box-shadow:0 0 20px rgba(0,245,255,0.08);}
+.l-field-input::placeholder{color:rgba(0,245,255,0.2);}
+.btn-login{width:100%;padding:16px;background:linear-gradient(135deg,rgba(0,245,255,0.15),rgba(0,245,255,0.08));border:1px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;outline:none;transition:all 0.3s;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));position:relative;overflow:hidden;}
+.btn-login:hover{box-shadow:0 0 30px rgba(0,245,255,0.3);text-shadow:0 0 10px var(--cyan);}
+.login-hint{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:rgba(0,245,255,0.3);text-align:center;margin-top:14px;}
+.error-msg{background:rgba(255,0,110,0.1);border:1px solid rgba(255,0,110,0.3);color:var(--pink);padding:10px 14px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;margin-bottom:14px;display:none;animation:shake 0.3s ease;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="scanlines"></div>
+<div class="bg-glow glow-cyan"></div>
+<div class="bg-glow glow-pink"></div>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="card-corner tl"></div><div class="card-corner tr"></div>
+    <div class="card-corner bl"></div><div class="card-corner br"></div>
+    <div class="brand">
+      <div class="brand-logo">CIPHERVAULT</div>
+      <div class="brand-sub">Secure Intelligence Search Platform</div>
+      <div style="text-align:center"><div class="security-badge"><div class="badge-dot"></div>AES-256-CTR · HMAC-SHA256 · SSE ACTIVE</div></div>
+    </div>
+    <div class="error-msg" id="errMsg"></div>
+    <div class="field-group">
+      <label class="l-field-label">⬡ Operator ID</label>
+      <input class="l-field-input" id="loginUser" type="text" placeholder="enter operator id..." />
+    </div>
+    <div class="field-group">
+      <label class="l-field-label">⬡ Encryption Key</label>
+      <input class="l-field-input" id="loginPass" type="password" placeholder="enter passphrase..." />
+    </div>
+    <button class="btn-login" onclick="doLogin()">⬡ AUTHENTICATE & ENTER VAULT</button>
+    <div class="login-hint">Demo mode — enter any credentials to access the vault</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">⬡</div>
+    <div><div class="brand-name">CIPHERVAULT</div><div class="brand-ver">SSE v2.4.1 · DEMO</div></div>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-avatar"><span id="userInitial">?</span><div class="user-online-dot"></div></div>
+    <div><div class="user-name" id="userName">—</div><div class="user-role">Intelligence Analyst</div></div>
+  </div>
+  <nav class="sidebar-nav">
+    <a class="nav-item active" onclick="switchTab('dashboard')">⬡ OVERVIEW</a>
+    <a class="nav-item" onclick="switchTab('upload')">⬡ ENCRYPT & UPLOAD</a>
+    <a class="nav-item" onclick="switchTab('search')">⬡ SECURE SEARCH</a>
+    <a class="nav-item" onclick="switchTab('verify')">⬡ VERIFY INTEGRITY</a>
+    <a class="nav-item" onclick="switchTab('index')">⬡ INDEX VISUALIZER</a>
+  </nav>
+  <div class="sidebar-status">
+    <div class="status-row"><span class="status-dot green"></span>AES-CTR Active</div>
+    <div class="status-row"><span class="status-dot green"></span>HMAC-SHA256 Ready</div>
+    <div class="status-row"><span class="status-dot cyan"></span>Merkle Chain Online</div>
+    <div class="status-row"><span class="status-dot cyan"></span>BK-Tree Loaded</div>
+  </div>
+  <button class="btn-logout" onclick="doLogout()">⬡ SECURE LOGOUT</button>
+</aside>
+
+<!-- MAIN -->
+<main class="main-content">
+  <header class="topbar">
+    <div><div class="topbar-title" id="tabTitle">INTELLIGENCE OVERVIEW</div><div class="topbar-path" id="tabPath">ciphervault / overview</div></div>
+    <div class="topbar-right">
+      <div class="metric-badge"><span class="metric-label">DOCS</span><span class="metric-val" id="mDocs">0</span></div>
+      <div class="metric-badge"><span class="metric-label">TOKENS</span><span class="metric-val" id="mTokens">0</span></div>
+      <div class="metric-badge"><span class="metric-label">QUERIES</span><span class="metric-val" id="mQueries">0</span></div>
+      <div class="time-display" id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- DASHBOARD TAB -->
+  <section class="tab-panel active" id="tab-dashboard">
+    <div class="dash-grid">
+      <div class="stat-card" style="--accent:#00f5ff"><div class="stat-icon">📄</div><div class="stat-val" id="sDocs">0</div><div class="stat-label">Encrypted Documents</div><div class="stat-bar"><div class="stat-fill cyan" id="bDocs" style="width:0%"></div></div></div>
+      <div class="stat-card" style="--accent:#39ff14"><div class="stat-icon">🔑</div><div class="stat-val" id="sTokens">0</div><div class="stat-label">Index Tokens</div><div class="stat-bar"><div class="stat-fill green" id="bTokens" style="width:0%"></div></div></div>
+      <div class="stat-card" style="--accent:#ffd60a"><div class="stat-icon">🔍</div><div class="stat-val" id="sSearches">0</div><div class="stat-label">Secure Queries</div><div class="stat-bar"><div class="stat-fill gold" id="bSearches" style="width:0%"></div></div></div>
+      <div class="stat-card" style="--accent:#ff006e"><div class="stat-icon">🎯</div><div class="stat-val" id="sHits">0</div><div class="stat-label">Total Hits</div><div class="stat-bar"><div class="stat-fill pink" id="bHits" style="width:0%"></div></div></div>
+      <div class="arch-panel">
+        <div class="panel-header">⬡ SSE ARCHITECTURE FLOW</div>
+        <div class="arch-flow">
+          <div class="arch-node"><div class="arch-node-icon">📝</div><div class="arch-node-label">PLAINTEXT</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node active"><div class="arch-node-icon">🔐</div><div class="arch-node-label">AES-CTR ENC</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node"><div class="arch-node-icon">🔑</div><div class="arch-node-label">HMAC TRAPDOOR</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node"><div class="arch-node-icon">🗂</div><div class="arch-node-label">ENC INDEX</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node"><div class="arch-node-icon">🌿</div><div class="arch-node-label">MERKLE PROOF</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node active"><div class="arch-node-icon">🎯</div><div class="arch-node-label">RESULTS</div></div>
+        </div>
+        <div class="leakage-note">⚠ Acceptable Leakage: Access Pattern Only · Zero Content Exposure to Server</div>
+      </div>
+      <div class="activity-panel">
+        <div class="panel-header">⬡ LIVE ACTIVITY FEED</div>
+        <div class="activity-list" id="actList">
+          <div class="activity-item"><span class="act-icon cyan">SYS</span><span class="act-text">CipherVault SSE initialized. Cryptographic subsystems online.</span></div>
+          <div class="activity-item"><span class="act-icon green">KEY</span><span class="act-text">Master keys derived via PBKDF2. HMAC-SHA256 trapdoor engine ready.</span></div>
+          <div class="activity-item"><span class="act-icon gold">BKT</span><span class="act-text">BK-Tree initialized. Fuzzy matching tolerance: ±2 Levenshtein edits.</span></div>
+        </div>
+      </div>
+      <div class="security-panel">
+        <div class="panel-header">⬡ SECURITY MODEL</div>
+        <div class="security-props">
+          <div class="prop"><span class="prop-key">Encryption</span><span class="prop-val cyan">AES-256-CTR</span></div>
+          <div class="prop"><span class="prop-key">Index Security</span><span class="prop-val green">HMAC-SHA256 Trapdoor</span></div>
+          <div class="prop"><span class="prop-key">Search Model</span><span class="prop-val gold">Sym. Searchable Enc.</span></div>
+          <div class="prop"><span class="prop-key">Substring</span><span class="prop-val cyan">N-gram (3-gram)</span></div>
+          <div class="prop"><span class="prop-key">Fuzzy Match</span><span class="prop-val green">BK-Tree (Levenshtein)</span></div>
+          <div class="prop"><span class="prop-key">Integrity</span><span class="prop-val gold">Merkle Tree Proof</span></div>
+          <div class="prop"><span class="prop-key">Privacy</span><span class="prop-val cyan">Query Randomization</span></div>
+          <div class="prop"><span class="prop-key">Leakage</span><span class="prop-val pink">Access Pattern Only</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- UPLOAD TAB -->
+  <section class="tab-panel" id="tab-upload">
+    <div class="upload-container">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">⬡</div>
+        <div class="upload-title">DROP DOCUMENTS FOR ENCRYPTION</div>
+        <div class="upload-sub">Drag & drop or click to select · Simulated AES-256-CTR encryption + HMAC indexing</div>
+        <input type="file" id="fileInput" multiple style="display:none"/>
+        <button class="btn-upload-select" onclick="event.stopPropagation();document.getElementById('fileInput').click()">⬡ SELECT FILES</button>
+      </div>
+      <div class="enc-animation" id="encAnim" style="display:none">
+        <div class="enc-anim-inner">
+          <canvas id="encCanvas" width="500" height="110"></canvas>
+          <div class="enc-label" id="encLabel">ENCRYPTING...</div>
+        </div>
+      </div>
+      <div class="upload-results" id="uploadResults"></div>
+    </div>
+  </section>
+
+  <!-- SEARCH TAB -->
+  <section class="tab-panel" id="tab-search">
+    <div class="search-container">
+      <div class="search-bar-wrap">
+        <div class="search-icon-wrap">⬡</div>
+        <input class="search-input" id="searchQ" type="text" placeholder="Enter secure query (e.g. patient, confidental, data)..." />
+        <div class="toggle-wrap"><input type="checkbox" id="fuzzyTog" checked/><span class="toggle-label">FUZZY</span></div>
+        <select class="tol-select" id="tolSel"><option value="1">TOL:1</option><option value="2" selected>TOL:2</option><option value="3">TOL:3</option></select>
+        <button class="btn-search" onclick="doSearch()">⬡ QUERY</button>
+      </div>
+      <div id="trapdoorPnl" style="display:none">
+        <div class="trapdoor-panel">
+          <div class="panel-header">⬡ TRAPDOOR GENERATION IN PROGRESS</div>
+          <div id="trapdoorFlow"></div>
+        </div>
+      </div>
+      <div id="resultsArea"></div>
+    </div>
+  </section>
+
+  <!-- VERIFY TAB -->
+  <section class="tab-panel" id="tab-verify">
+    <div class="verify-container">
+      <div class="panel-header">⬡ MERKLE PROOF VERIFICATION</div>
+      <p class="verify-intro">Cryptographically verify that a search result hasn't been tampered with. After a search, click "VERIFY PROOF" on any result to auto-populate the fields below, then confirm integrity.</p>
+      <div class="verify-form">
+        <label class="field-label">Document ID</label>
+        <input class="field-input" id="vDocId" placeholder="doc-uuid from search result..."/>
+        <label class="field-label">Merkle Root</label>
+        <input class="field-input" id="vRoot" placeholder="merkle root hash..."/>
+        <label class="field-label">Proof Path (JSON)</label>
+        <textarea class="field-textarea" id="vProof" rows="5" placeholder='[{"hash":"abc123...","direction":"right"},{"hash":"def456...","direction":"left"}]'></textarea>
+        <button class="btn-verify" onclick="doVerify()">⬡ VERIFY INTEGRITY</button>
+      </div>
+      <div class="verify-result" id="verifyResult" style="display:none"></div>
+      <div class="merkle-visual" id="merkleViz" style="display:none">
+        <div class="panel-header" style="margin-top:24px">⬡ MERKLE TREE STRUCTURE</div>
+        <canvas id="merkleCanvas" height="220"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- INDEX TAB -->
+  <section class="tab-panel" id="tab-index">
+    <div class="index-container">
+      <div class="panel-header">⬡ ENCRYPTED INDEX VISUALIZER</div>
+      <p style="font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--text2);margin-bottom:4px;line-height:1.7">
+        Live animation of the encrypted inverted index. Each HMAC-SHA256 token maps to encrypted document entries.
+        The server only sees opaque hashes — zero keyword exposure. N-gram nodes enable substring search.
+      </p>
+      <canvas id="indexCanvas" height="380"></canvas>
+      <div class="index-legend">
+        <div class="legend-item"><span class="legend-dot cyan"></span>HMAC Index Token</div>
+        <div class="legend-item"><span class="legend-dot gold"></span>N-gram Node</div>
+        <div class="legend-item"><span class="legend-dot green"></span>Encrypted Doc Entry</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  docs: [], queries: 0, hits: 0, user: '',
+  invertedIndex: {},   // keyword → [docIds]
+  merkleTrees: {}      // searchId → tree data
+};
+
+// ── Simulated SSE Core ─────────────────────────────────────────────────────
+function sha256sim(str) {
+  // Deterministic fake hash for demo (not real SHA256)
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (Math.imul(h, 0x01000193) >>> 0);
+  }
+  return h.toString(16).padStart(8,'0').repeat(8);
+}
+
+function hmacSim(key, msg) {
+  return sha256sim(key + ':' + msg);
+}
+
+function generateTrapdoor(keyword, userId) {
+  return hmacSim('TRAPDOOR_KEY_' + userId, keyword.toLowerCase().trim());
+}
+
+function generateToken(keyword) {
+  return hmacSim('INDEX_KEY', keyword.toLowerCase().trim());
+}
+
+function getNgrams(text, n=3) {
+  const t = text.toLowerCase();
+  if (t.length < n) return [t];
+  const grams = new Set();
+  for (let i = 0; i <= t.length - n; i++) grams.add(t.slice(i, i+n));
+  return [...grams];
+}
+
+function levenshtein(a, b) {
+  const dp = Array.from({length:b.length+1},(_,i)=>i);
+  for (let i=0;i<a.length;i++){
+    let prev=dp[0]; dp[0]=i+1;
+    for (let j=0;j<b.length;j++){const tmp=dp[j+1]; dp[j+1]=a[i]===b[j]?prev:1+Math.min(prev,dp[j],dp[j+1]); prev=tmp;}
+  }
+  return dp[b.length];
+}
+
+function aesEncryptSim(text) {
+  // Visual simulation: produce hex-looking output
+  return Array.from(text).map(c=>(c.charCodeAt(0)^0xAE).toString(16).padStart(2,'0')).join('').substring(0,32)+'...';
+}
+
+function encryptAndIndex(docId, filename, content) {
+  const words = content.toLowerCase().match(/\w+/g) || [];
+  const allKws = new Set(words);
+  words.forEach(w => getNgrams(w,3).forEach(g => allKws.add(g)));
+
+  allKws.forEach(kw => {
+    const token = generateToken(kw);
+    if (!state.invertedIndex[token]) state.invertedIndex[token] = [];
+    if (!state.invertedIndex[token].includes(docId))
+      state.invertedIndex[token].push(docId);
+  });
+
+  return { keywords: allKws.size };
+}
+
+function secureSearch(query, fuzzy=true, tolerance=2) {
+  const kw = query.toLowerCase().trim();
+  const matchedDocs = new Set();
+  const trapdoor = generateTrapdoor(kw, state.user);
+  const token = generateToken(kw);
+  const candidates = new Set([kw]);
+
+  if (fuzzy) {
+    // Find similar words in index vocabulary (simulated BK-tree)
+    const allWords = new Set();
+    state.docs.forEach(d => (d.content.toLowerCase().match(/\w+/g)||[]).forEach(w=>allWords.add(w)));
+    allWords.forEach(w => { if (levenshtein(kw, w) <= tolerance) candidates.add(w); });
+  }
+
+  // N-gram fallback
+  const queryNgrams = new Set(getNgrams(kw, Math.min(3, kw.length)));
+  state.docs.forEach(d => {
+    const words = (d.content.toLowerCase().match(/\w+/g)||[]);
+    const docNgrams = new Set();
+    words.forEach(w => getNgrams(w,3).forEach(g=>docNgrams.add(g)));
+    let intersects = false;
+    queryNgrams.forEach(g => { if (docNgrams.has(g)) intersects = true; });
+    if (intersects) matchedDocs.add(d.id);
+  });
+
+  // Direct token lookup
+  candidates.forEach(c => {
+    const t = generateToken(c);
+    if (state.invertedIndex[t]) state.invertedIndex[t].forEach(id => matchedDocs.add(id));
+  });
+
+  const results = [...matchedDocs].map(id => state.docs.find(d=>d.id===id)).filter(Boolean);
+  return { results, trapdoor, candidates: candidates.size };
+}
+
+function buildMerkleTree(leaves) {
+  if (!leaves.length) return { root:'', layers:[], leaves:[] };
+  const hash = s => sha256sim(s);
+  let layer = leaves.map(hash);
+  const layers = [layer.slice()];
+  while (layer.length > 1) {
+    if (layer.length % 2 === 1) layer.push(layer[layer.length-1]);
+    const next = [];
+    for (let i=0;i<layer.length;i+=2) next.push(hash(layer[i]+layer[i+1]));
+    layer = next;
+    layers.push(layer.slice());
+  }
+  return { root: layer[0], layers, leaves: leaves.map(hash) };
+}
+
+function getMerkleProof(tree, index) {
+  const proof = [];
+  let idx = index;
+  for (let l=0; l<tree.layers.length-1; l++) {
+    const layer = tree.layers[l];
+    const sibling = idx%2===0 ? idx+1 : idx-1;
+    if (sibling < layer.length) proof.push({hash:layer[sibling], direction: idx%2===0?'right':'left'});
+    idx = Math.floor(idx/2);
+  }
+  return proof;
+}
+
+function verifyMerkleProof(leaf, proof, root) {
+  let cur = sha256sim(leaf);
+  for (const step of proof) {
+    cur = step.direction==='right' ? sha256sim(cur+step.hash) : sha256sim(step.hash+cur);
+  }
+  return cur === root;
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (!u || !p) { showErr('⚠ Credentials required.'); return; }
+  state.user = u;
+  document.getElementById('userName').textContent = u.toUpperCase();
+  document.getElementById('userInitial').textContent = u[0].toUpperCase();
+  document.getElementById('loginOverlay').style.display='none';
+  addActivity('AUTH','green',`Operator ${u.toUpperCase()} authenticated. Cryptographic session established.`);
+}
+function showErr(msg){const e=document.getElementById('errMsg');e.textContent=msg;e.style.display='block';}
+function doLogout(){document.getElementById('loginOverlay').style.display='flex';document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';addActivity('SYS','pink','Session terminated. Keys zeroed.');}
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+const tabMeta = {
+  dashboard:['INTELLIGENCE OVERVIEW','ciphervault / overview'],
+  upload:['ENCRYPT & UPLOAD DOCUMENTS','ciphervault / encrypt'],
+  search:['SECURE SEARCH INTERFACE','ciphervault / query'],
+  verify:['MERKLE PROOF VERIFICATION','ciphervault / verify'],
+  index:['ENCRYPTED INDEX VISUALIZER','ciphervault / index-viz'],
+};
+function switchTab(t) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{ if(n.textContent.includes(tabMeta[t][0].split(' ')[0])||n.onclick?.toString().includes(t)) n.classList.add('active'); });
+  const [title,path]=tabMeta[t];
+  document.getElementById('tabTitle').textContent=title;
+  document.getElementById('tabPath').textContent=path;
+  if(t==='index') drawIndex();
+}
+// Fix nav onclick
+document.querySelectorAll('.nav-item').forEach((n,i)=>{
+  const tabs=['dashboard','upload','search','verify','index'];
+  n.onclick=()=>switchTab(tabs[i]);
+});
+
+// ── Clock ─────────────────────────────────────────────────────────────────
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false});},1000);
+
+// ── Upload ────────────────────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change',e=>handleFiles(e.target.files));
+document.getElementById('uploadZone').addEventListener('dragover',e=>{e.preventDefault();e.currentTarget.classList.add('drag-over');});
+document.getElementById('uploadZone').addEventListener('dragleave',e=>e.currentTarget.classList.remove('drag-over'));
+document.getElementById('uploadZone').addEventListener('drop',e=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');handleFiles(e.dataTransfer.files);});
+
+async function handleFiles(files){
+  for(const f of files) await processFile(f);
+}
+
+async function processFile(file) {
+  const anim = document.getElementById('encAnim');
+  const label = document.getElementById('encLabel');
+  anim.style.display='block';
+  label.textContent=`ENCRYPTING: ${file.name.toUpperCase()}`;
+  const canvas=document.getElementById('encCanvas');
+  const stop=runEncAnim(canvas,file.name);
+
+  const text = await file.text().catch(()=>'[binary]');
+  await sleep(1200+Math.random()*800);
+
+  const id = 'doc-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const fingerprint = sha256sim(id+text);
+  const {keywords} = encryptAndIndex(id, file.name, text);
+  const encPreview = aesEncryptSim(text.slice(0,20));
+
+  state.docs.push({id, filename:file.name, size:file.size, content:text, upload_time:Date.now(), fingerprint, encPreview});
+  updateStats();
+
+  stop(); anim.style.display='none';
+
+  const card=document.createElement('div');
+  card.className='upload-result-card';
+  card.innerHTML=`
+    <div class="result-icon">🔐</div>
+    <div class="result-info">
+      <div class="result-name">${file.name}</div>
+      <div class="result-meta">Size: ${fmt(file.size)} · Keywords: ${keywords} indexed · ID: ${id.slice(0,16)}...</div>
+      <div class="result-fp">Fingerprint: ${fingerprint}</div>
+      <div class="result-fp" style="color:var(--text2)">Ciphertext: ${encPreview}</div>
+    </div>
+    <div class="result-badge">✓ ENCRYPTED</div>`;
+  document.getElementById('uploadResults').insertBefore(card,document.getElementById('uploadResults').firstChild);
+  addActivity('ENC','green',`Document encrypted & indexed: ${file.name} · ${keywords} tokens`);
+}
+
+function runEncAnim(canvas,name){
+  const ctx=canvas.getContext('2d'); let frame=0,running=true;
+  const chars='0123456789abcdef';
+  function rh(len){return Array.from({length:len},()=>chars[Math.floor(Math.random()*16)]).join('');}
+  function draw(){
+    if(!running)return;
+    ctx.fillStyle='#060d14'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.font='11px "Share Tech Mono"';
+    for(let row=0;row<7;row++){
+      const y=15+row*14; const alpha=0.2+0.2*Math.sin(frame*0.1+row);
+      ctx.fillStyle=`rgba(0,245,255,${alpha})`;
+      ctx.fillText(rh(8)+' '+rh(8)+' '+rh(8)+' '+rh(8)+' '+rh(8)+' '+rh(8),8,y);
+    }
+    const pct=Math.min(frame/80,1);
+    ctx.fillStyle='rgba(0,245,255,0.1)'; ctx.fillRect(8,canvas.height-16,canvas.width-16,6);
+    ctx.fillStyle='#00f5ff'; ctx.shadowColor='#00f5ff'; ctx.shadowBlur=10;
+    ctx.fillRect(8,canvas.height-16,(canvas.width-16)*pct,6);
+    ctx.shadowBlur=0; frame++; requestAnimationFrame(draw);
+  }
+  draw();
+  return ()=>{running=false;};
+}
+
+// ── Search ────────────────────────────────────────────────────────────────
+document.getElementById('searchQ').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+
+async function doSearch(){
+  const query=document.getElementById('searchQ').value.trim();
+  if(!query)return;
+  const fuzzy=document.getElementById('fuzzyTog').checked;
+  const tol=parseInt(document.getElementById('tolSel').value);
+
+  showTrapdoor(query);
+  await sleep(400);
+
+  const t0=performance.now();
+  const {results,trapdoor,candidates}=secureSearch(query,fuzzy,tol);
+  const elapsed=(performance.now()-t0).toFixed(2);
+
+  state.queries++; state.hits+=results.length; updateStats();
+
+  const tree = results.length ? buildMerkleTree(results.map(r=>r.id)) : null;
+  displayResults(results, {query,trapdoor,candidates,elapsed,fuzzy,tol}, tree);
+  addActivity('QRY','gold',`Secure query: "${query}" → ${results.length} hits · ${elapsed}ms · trapdoor:${trapdoor.slice(0,12)}...`);
+}
+
+function showTrapdoor(query){
+  const panel=document.getElementById('trapdoorPnl');
+  const flow=document.getElementById('trapdoorFlow');
+  panel.style.display='block'; flow.innerHTML='';
+  const steps=[
+    ['INPUT KEYWORD', query],
+    ['NORMALIZE', query.toLowerCase().trim()],
+    ['HMAC-SHA256 TRAPDOOR', 'T(w) = HMAC(K_trap, user_id || keyword)'],
+    ['INDEX TOKEN', 'I(w) = HMAC(K_index, keyword)'],
+    ['N-GRAM EXPANSION', getNgrams(query.toLowerCase(),Math.min(3,query.length)).slice(0,5).join(', ')+'...'],
+    ['DUMMY TOKENS', '+3 random tokens injected for access-pattern privacy'],
+    ['DISPATCHED', '4 opaque tokens sent to encrypted index'],
+  ];
+  steps.forEach(([k,v],i)=>{
+    setTimeout(()=>{
+      const d=document.createElement('div');
+      d.className='trap-step';
+      d.innerHTML=`<span class="trap-key">${k}</span><span class="trap-val">${v}</span>`;
+      flow.appendChild(d);
+    },i*100);
+  });
+}
+
+let lastTree=null, lastResults=[];
+function displayResults(results, meta, tree){
+  const area=document.getElementById('resultsArea'); area.innerHTML='';
+  lastTree=tree; lastResults=results;
+
+  const m=document.createElement('div'); m.className='search-meta';
+  m.innerHTML=`
+    <div class="meta-item"><span class="meta-key">RESULTS</span><span class="meta-val">${results.length}</span></div>
+    <div class="meta-item"><span class="meta-key">TRAPDOOR (partial)</span><span class="meta-val">${meta.trapdoor.slice(0,16)}...</span></div>
+    <div class="meta-item"><span class="meta-key">FUZZY CANDIDATES</span><span class="meta-val">${meta.candidates}</span></div>
+    <div class="meta-item"><span class="meta-key">ELAPSED</span><span class="meta-val">${meta.elapsed}ms</span></div>
+    <div class="meta-item"><span class="meta-key">LEAKAGE</span><span class="meta-val">access_pattern_only</span></div>
+    ${tree?`<div class="meta-item"><span class="meta-key">MERKLE ROOT</span><span class="meta-val">${tree.root.slice(0,16)}...</span></div>`:''}`;
+  area.appendChild(m);
+
+  if(!results.length){area.innerHTML+='<div class="no-results">⬡ No documents matched. Upload some files first and try again.</div>';return;}
+
+  results.forEach((r,i)=>{
+    const proof=tree?getMerkleProof(tree,i):[];
+    const card=document.createElement('div'); card.className='result-card';
+    card.innerHTML=`
+      <div class="result-header">
+        <div class="result-title">📄 ${r.filename}</div>
+        <div class="result-size">${fmt(r.size)} · ${new Date(r.upload_time).toLocaleTimeString()}</div>
+      </div>
+      <div class="result-snippet">${esc(r.content.slice(0,200))}</div>
+      <div class="result-footer">
+        <span class="result-tag doc-id">ID: ${r.id}</span>
+        ${tree?'<span class="result-tag verified">✓ MERKLE VERIFIABLE</span>':''}
+        ${tree?`<button style="padding:3px 10px;background:rgba(255,214,10,0.06);border:1px solid rgba(255,214,10,0.2);color:#ffd60a;font-family:'Share Tech Mono',monospace;font-size:0.6px;cursor:pointer;font-size:0.6rem" onclick='autoVerify(${JSON.stringify(r.id)},${JSON.stringify(proof)},${JSON.stringify(tree.root)})'>⬡ VERIFY PROOF</button>`:''}
+      </div>`;
+    area.appendChild(card);
+  });
+
+  if(tree&&results.length) drawMerkleViz(results.map(r=>r.id),tree);
+}
+
+// ── Verify ────────────────────────────────────────────────────────────────
+function doVerify(){
+  const docId=document.getElementById('vDocId').value.trim();
+  const root=document.getElementById('vRoot').value.trim();
+  const proofRaw=document.getElementById('vProof').value.trim();
+  if(!docId||!root||!proofRaw){showVerify(false,'Please fill all fields.');return;}
+  let proof; try{proof=JSON.parse(proofRaw);}catch{showVerify(false,'Invalid JSON proof.');return;}
+  const valid=verifyMerkleProof(docId,proof,root);
+  showVerify(valid, valid?'✓ Merkle proof verified. Result integrity confirmed.':'✗ Integrity check FAILED. Result may have been tampered with.');
+  if(valid&&lastTree&&lastResults.length) drawMerkleViz(lastResults.map(r=>r.id),lastTree);
+  addActivity('VRF',valid?'green':'pink',(valid?'Proof verified: ':'Proof FAILED: ')+docId.slice(0,16)+'...');
+}
+
+function showVerify(ok,msg){
+  const el=document.getElementById('verifyResult');
+  el.style.display='block'; el.className='verify-result '+(ok?'success':'fail');
+  el.innerHTML=msg;
+}
+
+function autoVerify(docId,proof,root){
+  switchTab('verify');
+  document.getElementById('vDocId').value=docId;
+  document.getElementById('vRoot').value=root;
+  document.getElementById('vProof').value=JSON.stringify(proof,null,2);
+}
+
+// ── Canvas: Merkle ────────────────────────────────────────────────────────
+function drawMerkleViz(docIds,tree){
+  const viz=document.getElementById('merkleViz'); viz.style.display='block';
+  const canvas=document.getElementById('merkleCanvas');
+  const n=Math.min(docIds.length,8);
+  canvas.width=Math.max(700,n*100); canvas.height=220;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#060d14'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(!n)return;
+  const leafY=185,rootY=30,W=canvas.width;
+  const xs=Array.from({length:n},(_,i)=>W/(n+1)*(i+1));
+
+  // Lines
+  ctx.strokeStyle='rgba(0,245,255,0.25)'; ctx.lineWidth=1;
+  const midY=(leafY+rootY)/2;
+  xs.forEach(x=>{
+    ctx.beginPath(); ctx.moveTo(x,leafY-12); ctx.lineTo(x,midY); ctx.lineTo(W/2,midY); ctx.lineTo(W/2,rootY+14); ctx.stroke();
+  });
+
+  // Root
+  drawCircNode(ctx,W/2,rootY,tree.root.slice(0,8)+'...','#ffd60a',true);
+  // Leaves
+  xs.forEach((x,i)=>drawCircNode(ctx,x,leafY,docIds[i].slice(0,8)+'...','#00f5ff'));
+}
+
+function drawCircNode(ctx,x,y,label,color,big=false){
+  const r=big?14:10;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle=color+'22'; ctx.fill();
+  ctx.strokeStyle=color; ctx.lineWidth=1.5;
+  ctx.shadowColor=color; ctx.shadowBlur=8; ctx.stroke();
+  ctx.fillStyle=color; ctx.font=`${big?10:9}px "Share Tech Mono"`;
+  ctx.textAlign='center'; ctx.fillText(label,x,y+r+13);
+  ctx.shadowBlur=0;
+}
+
+// ── Canvas: Index ─────────────────────────────────────────────────────────
+function drawIndex(){
+  const canvas=document.getElementById('indexCanvas');
+  if(!canvas)return;
+  canvas.width=canvas.parentElement.clientWidth||900;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  let running=true;
+  let frame=0;
+  function rh(n){return Array.from({length:n},()=>Math.floor(Math.random()*16).toString(16)).join('');}
+
+  function drawFrame(){
+    if(!running)return;
+    ctx.fillStyle='#060d14'; ctx.fillRect(0,0,W,H);
+    const now=Date.now();
+
+    const tokenNodes=Array.from({length:8},(_,i)=>({x:80+Math.sin(now*0.0003+i)*15,y:40+i*43,type:'token',label:rh(8)}));
+    const ngramNodes=Array.from({length:6},(_,i)=>({x:W*0.42+Math.cos(now*0.0004+i*1.05)*12,y:55+i*50,type:'ngram',label:rh(6)}));
+    const docNodes=Array.from({length:7},(_,i)=>({x:W-80+Math.sin(now*0.0005+i*0.9)*10,y:30+i*50,type:'doc',label:rh(8)}));
+
+    // Edges
+    tokenNodes.forEach(t=>{
+      ngramNodes.slice(0,Math.floor(Math.random()*3+1)).forEach(n=>{
+        const a=0.07+0.04*Math.sin(now*0.002+t.y);
+        ctx.strokeStyle=`rgba(0,245,255,${a})`; ctx.lineWidth=0.8;
+        ctx.beginPath(); ctx.moveTo(t.x+12,t.y); ctx.lineTo(n.x-12,n.y); ctx.stroke();
+      });
+    });
+    ngramNodes.forEach(n=>{
+      docNodes.slice(0,Math.floor(Math.random()*3+1)).forEach(d=>{
+        const a=0.07+0.04*Math.sin(now*0.0015+n.y);
+        ctx.strokeStyle=`rgba(57,255,20,${a})`; ctx.lineWidth=0.8;
+        ctx.beginPath(); ctx.moveTo(n.x+12,n.y); ctx.lineTo(d.x-12,d.y); ctx.stroke();
+      });
+    });
+
+    const colors={token:'#00f5ff',ngram:'#ffd60a',doc:'#39ff14'};
+    [...tokenNodes,...ngramNodes,...docNodes].forEach(n=>{
+      const c=colors[n.type];
+      ctx.shadowColor=c; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(n.x,n.y,5,0,Math.PI*2);
+      ctx.fillStyle=c+'33'; ctx.fill();
+      ctx.strokeStyle=c; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.shadowBlur=0; ctx.fillStyle=c;
+      ctx.font='8px "Share Tech Mono"'; ctx.textAlign='left';
+      ctx.fillText(n.label,n.x+9,n.y+3);
+    });
+
+    ctx.font='10px "Share Tech Mono"'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(0,245,255,0.35)'; ctx.fillText('HMAC TOKENS',80,H-10);
+    ctx.fillStyle='rgba(255,214,10,0.35)'; ctx.fillText('N-GRAM INDEX',W*0.42,H-10);
+    ctx.fillStyle='rgba(57,255,20,0.35)'; ctx.fillText('ENC DOC ENTRIES',W-80,H-10);
+
+    frame++; requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+}
+
+// ── Activity ──────────────────────────────────────────────────────────────
+function addActivity(icon,type,msg){
+  const list=document.getElementById('actList');
+  const item=document.createElement('div'); item.className='activity-item';
+  item.innerHTML=`<span class="act-icon ${type}">${icon}</span><span class="act-text">${msg}</span>`;
+  list.insertBefore(item,list.firstChild);
+  while(list.children.length>25)list.removeChild(list.lastChild);
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats(){
+  const docs=state.docs.length;
+  const tokens=Object.keys(state.invertedIndex).length;
+  ['Docs','Tokens','Searches','Hits'].forEach((k,i)=>{
+    const vals=[docs,tokens,state.queries,state.hits];
+    document.getElementById('s'+k).textContent=vals[i];
+    document.getElementById('b'+k).style.width=Math.min(vals[i]/(k==='Docs'?50:k==='Tokens'?5000:100)*100,100)+'%';
+  });
+  document.getElementById('mDocs').textContent=docs;
+  document.getElementById('mTokens').textContent=tokens;
+  document.getElementById('mQueries').textContent=state.queries;
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function fmt(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(1)+' KB';return (b/1048576).toFixed(2)+' MB';}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// Start index viz animation loop
+setInterval(()=>{if(document.getElementById('tab-index').classList.contains('active'))drawIndex();},3000);
+</script>
+</body>
+</html>
